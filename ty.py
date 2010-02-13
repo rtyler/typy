@@ -17,7 +17,7 @@ class LetterSpool(object):
     spooled = None
     parent = None
     font = None
-    clear_keys = (K_RETURN, K_SPACE,)
+    clear_keys = (K_SPACE,)
     color = (255, 255, 255,)
     parent_width = None
     parent_height = None
@@ -39,7 +39,7 @@ class LetterSpool(object):
             return
         if event.key == K_BACKSPACE:
             self.spooled = self.spooled[:-1]
-        else:
+        elif event.key != K_RETURN:
             self.spooled.append(event.unicode)
 
         buffer = ''.join(self.spooled)
@@ -50,27 +50,18 @@ class LetterSpool(object):
                 (offset_x, offset_y,))
 
 class AnimatingObject(object):
-    surface = None
-    parent = None
-    width, height = None, None
-    parent_width, parent_height = None, None
-
     def update(self):
         ''' Return True if the object is offscreen '''
         pass
 
 class AnimatingWord(AnimatingObject):
-    color = (255, 255, 255,)
-    word = None
-    font = None
-    step = 0.05
-    offset_x, offset_y = None, None
-
     def __init__(self, parent, word, **kwargs):
         self.__dict__.update(kwargs)
+        self.color = (255, 255, 255,)
         self.parent = parent
         self.parent_width, self.parent_height = parent.get_size()
         self.word = word
+        self.step = 0.05
         self.font = pygame.font.SysFont('Courier', 42)
 
         self.width, self.height = self.font.size(word)
@@ -79,6 +70,13 @@ class AnimatingWord(AnimatingObject):
         self.surface = self.font.render(word, 0, self.color)
 
     def is_offscreen(self):
+        return False
+
+    def next_ready(self):
+        ''' Returns true if we're far enough left to start the next word '''
+        space_w, space_h = self.font.size(' ')
+        if self.width + self.offset_x + space_w <= self.parent_width:
+            return True
         return False
 
     def update(self):
@@ -137,13 +135,19 @@ class Typy(object):
             pygame.mixer.music.load('background.mid')
             pygame.mixer.music.play(-1, 0.0)
 
-        words = [AnimatingWord(self.surface, 'Hello')]
+        scrollwords = [AnimatingWord(self.surface, w) for w in words.words()]
+        last_word_index = 0
         while run:
             for event in pygame.event.get():
                 run = self.handle_event(event)
 
-            for w in words:
-                w.update()
+            for index, word in enumerate(scrollwords):
+                if index <= last_word_index:
+                    word.update()
+
+            if last_word_index <= (len(scrollwords) - 1):
+                if scrollwords[last_word_index].next_ready():
+                    last_word_index += 1
 
             pygame.display.update()
         if self.background_music:
