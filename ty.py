@@ -23,6 +23,7 @@ class LetterSpool(object):
     parent_height = None
 
     def __init__(self, parent, **kwargs):
+        self.__dict__.update(kwargs)
         self.parent = parent
         self.parent_width, self.parent_height = parent.get_size()
         self.font = pygame.font.SysFont('Courier', 32)
@@ -47,6 +48,47 @@ class LetterSpool(object):
         offset_x = (self.parent_width / 2) - (spool_width / 2)
         self.parent.blit(self.font.render(buffer, 0, self.color),
                 (offset_x, offset_y,))
+
+class AnimatingObject(object):
+    surface = None
+    parent = None
+    width, height = None, None
+    parent_width, parent_height = None, None
+
+    def update(self):
+        ''' Return True if the object is offscreen '''
+        pass
+
+class AnimatingWord(AnimatingObject):
+    color = (255, 255, 255,)
+    word = None
+    font = None
+    step = 0.05
+    offset_x, offset_y = None, None
+
+    def __init__(self, parent, word, **kwargs):
+        self.__dict__.update(kwargs)
+        self.parent = parent
+        self.parent_width, self.parent_height = parent.get_size()
+        self.word = word
+        self.font = pygame.font.SysFont('Courier', 42)
+
+        self.width, self.height = self.font.size(word)
+        self.offset_x = self.parent_width
+        self.offset_y = (self.parent_height / 2) - (self.height / 2)
+        self.surface = self.font.render(word, 0, self.color)
+
+    def is_offscreen(self):
+        return False
+
+    def update(self):
+        ''' Update the word's position, returning True if it's offscreen '''
+        self.parent.fill( (0, 0, 0),
+                rect=pygame.Rect(self.offset_x, self.offset_y,
+                    self.width, self.height))
+        self.parent.blit(self.surface, (self.offset_x, self.offset_y))
+        self.offset_x = self.offset_x - self.step
+        return False
 
 
 class Typy(object):
@@ -95,25 +137,17 @@ class Typy(object):
             pygame.mixer.music.load('background.mid')
             pygame.mixer.music.play(-1, 0.0)
 
-        word_x = 480
-        step = 0.05
-        text = 'hello'
-        word = self.font.render(text, 0, (255,255,255))
-        f_w, f_h = self.font.size(text)
-        off_screen = len(text) * f_w
+        words = [AnimatingWord(self.surface, 'Hello')]
         while run:
             for event in pygame.event.get():
                 run = self.handle_event(event)
 
-            if word_x >= -off_screen:
-                # Rect(left, top, width, height)
-                self.surface.fill((0,0,0), 
-                        rect=pygame.Rect(word_x, 100, f_w, f_h))
-                self.surface.blit(word, (word_x, 100))
-                word_x = word_x - step
+            for w in words:
+                w.update()
 
             pygame.display.update()
-        pygame.mixer.music.stop()
+        if self.background_music:
+            pygame.mixer.music.stop()
 
 if __name__ == "__main__" :
     pygame.init()
