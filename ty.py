@@ -19,9 +19,12 @@ class LetterSpool(object):
     font = None
     clear_keys = (K_RETURN, K_SPACE,)
     color = (255, 255, 255,)
+    parent_width = None
+    parent_height = None
 
     def __init__(self, parent, **kwargs):
         self.parent = parent
+        self.parent_width, self.parent_height = parent.get_size()
         self.font = pygame.font.SysFont('Courier', 32)
         self.spooled = []
 
@@ -37,8 +40,13 @@ class LetterSpool(object):
             self.spooled = self.spooled[:-1]
         else:
             self.spooled.append(event.unicode)
-        self.parent.blit(self.font.render(''.join(self.spooled), 0, self.color),
-                (0,0,))
+
+        buffer = ''.join(self.spooled)
+        spool_width, spool_height = self.font.size(buffer)
+        offset_y = self.parent_height - (5 + spool_height)
+        offset_x = (self.parent_width / 2) - (spool_width / 2)
+        self.parent.blit(self.font.render(buffer, 0, self.color),
+                (offset_x, offset_y,))
 
 
 class Typy(object):
