@@ -109,7 +109,7 @@ class GameRunner(object):
     size = None
     clock = None
     tick = 30
-    background_music = False
+    background_music = True
     font = None
     spool = None
 
@@ -147,7 +147,10 @@ class GameRunner(object):
     def runloop(self):
         run = True
         if self.background_music:
-            pygame.mixer.music.load('background.mid')
+            music_dir = os.path.join('sound', 'background')
+            song = random.choice(os.listdir(music_dir))
+            logging.debug('Using %s for background music' % song)
+            pygame.mixer.music.load(os.path.join('sound', 'background', song))
             pygame.mixer.music.play(-1, 0.0)
 
         story_title = None
