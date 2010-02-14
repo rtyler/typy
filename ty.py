@@ -112,6 +112,7 @@ class GameRunner(object):
     background_music = True
     font = None
     spool = None
+    sounds = None
 
     def __init__(self, width, height, story, **kwargs):
         self.size = width, height
@@ -127,6 +128,8 @@ class GameRunner(object):
 
         self.font = pygame.font.SysFont('Courier', 48)
         self.spool = LetterSpool(self.surface)
+
+        self.sounds = {}
 
     def should_exit(self, event):
         if event.type == QUIT:
@@ -147,10 +150,12 @@ class GameRunner(object):
     def runloop(self):
         run = True
         if self.background_music:
+            self.sounds['chaching'] = pygame.mixer.Sound(os.path.join('sound', 'effects', 'cha_ching.wav'))
             music_dir = os.path.join('sound', 'background')
             song = random.choice(os.listdir(music_dir))
             logging.debug('Using %s for background music' % song)
             pygame.mixer.music.load(os.path.join('sound', 'background', song))
+            pygame.mixer.music.set_volume(0.5)
             pygame.mixer.music.play(-1, 0.0)
 
         story_title = None
@@ -177,6 +182,8 @@ class GameRunner(object):
                     if first_word.word == event.word:
                         logging.debug('Player completed word "%s"' % event.word)
                         scrollwords = scrollwords[1:]
+                        self.sounds['chaching'].play()
+                        pygame.event.pump()
                         last_word_index -= 1
                         if last_word_index < 0:
                             last_word_index = 0
@@ -196,7 +203,7 @@ class GameRunner(object):
 
             pygame.display.update()
         if self.background_music:
-            pygame.mixer.music.stop()
+            pygame.mixer.music.fadeout(500)
 
 def main():
     options = optparse.OptionParser()
