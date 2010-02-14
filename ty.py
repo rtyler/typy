@@ -8,7 +8,8 @@ import random
 import pygame
 from pygame.locals import *
 
-from typy import words
+import typy.words
+import typy.events
 
 if os.environ.get('DEBUG'):
     logging.basicConfig(level=logging.DEBUG)
@@ -31,12 +32,16 @@ class LetterSpool(object):
 
     def clear(self):
         logging.debug('LetterSpool.clear()')
+        event = pygame.event.Event(typy.events.WORD_COMPLETED,
+                word=''.join(self.spooled))
+        pygame.event.post(event)
         self.spooled = []
 
     def handle_key(self, event):
         if event.key in self.clear_keys:
             self.clear()
             return
+
         if event.key == K_BACKSPACE:
             self.spooled = self.spooled[:-1]
         elif event.key != K_RETURN:
@@ -89,15 +94,14 @@ class AnimatingWord(AnimatingObject):
         return False
 
 
-class Typy(object):
+class GameRunner(object):
     surface = None
     size = None
     clock = None
-    tick = 15
+    tick = 30
     background_music = False
     font = None
     spool = None
-    current_letters = None
 
     def __init__(self, width, height, **kwargs):
         self.size = width, height
@@ -119,14 +123,13 @@ class Typy(object):
             return True
         return False
 
-    def handle_event(self, event):
+    def handle_key_event(self, event):
         ## Return a boolean whether we should continue the runloop
         if self.should_exit(event):
             return False
         if event.type == KEYDOWN:
             self.surface.fill((0, 0, 0))
             self.spool.handle_key(event)
-        print ('handle_event', event)
         return True
 
     def runloop(self):
@@ -135,11 +138,23 @@ class Typy(object):
             pygame.mixer.music.load('background.mid')
             pygame.mixer.music.play(-1, 0.0)
 
-        scrollwords = [AnimatingWord(self.surface, w) for w in words.words()]
+        pygame.event.set_allowed(typy.events.WORD_COMPLETED)
+        scrollwords = [AnimatingWord(self.surface, w) for w in typy.words.words()]
         last_word_index = 0
         while run:
             for event in pygame.event.get():
-                run = self.handle_event(event)
+                if event.type == KEYDOWN:
+                    run = self.handle_key_event(event)
+                    continue
+                if event.type == typy.events.WORD_COMPLETED:
+                    first_word = scrollwords[0]
+                    if first_word.word == event.word:
+                        logging.debug('Player completed word "%s"' % event.word)
+                        scrollwords = scrollwords[1:]
+                        last_word_index -= 1
+                        if last_word_index < 0:
+                            last_word_index = 0
+                    self.surface.fill((0, 0, 0))
 
             for index, word in enumerate(scrollwords):
                 if index <= last_word_index:
@@ -155,6 +170,6 @@ class Typy(object):
 
 if __name__ == "__main__" :
     pygame.init()
-    typy = Typy(640, 480)
-    typy.runloop()
+    game = GameRunner(640, 480)
+    game.runloop()
     pygame.quit()
