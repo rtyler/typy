@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+from __future__ import with_statement
 
 import logging
+import optparse
 import os
 import sys
 import random
@@ -13,6 +15,8 @@ import typy.events
 
 if os.environ.get('DEBUG'):
     logging.basicConfig(level=logging.DEBUG)
+
+STORIES_DIR = 'stories'
 
 class LetterSpool(object):
     spooled = None
@@ -63,7 +67,7 @@ class AnimatingWord(AnimatingObject):
         self.color = (255, 255, 255,)
         self.parent = parent
         self.parent_width, self.parent_height = parent.get_size()
-        self.word = word
+        self.word = word.strip()
         self.step = 0.05
         self.font = pygame.font.SysFont('Courier', 42)
 
@@ -109,15 +113,17 @@ class GameRunner(object):
     font = None
     spool = None
 
-    def __init__(self, width, height, **kwargs):
+    def __init__(self, width, height, story, **kwargs):
         self.size = width, height
         self.surface = pygame.display.set_mode(self.size,
                 pygame.HWSURFACE | pygame.DOUBLEBUF)
 
+        self.story = story
         self.clock = pygame.time.Clock()
         self.clock.tick(self.tick)
         pygame.display.set_caption('Typy!')
         pygame.mouse.set_visible(False)
+        pygame.event.set_allowed(typy.events.WORD_COMPLETED)
 
         self.font = pygame.font.SysFont('Courier', 48)
         self.spool = LetterSpool(self.surface)
@@ -144,8 +150,19 @@ class GameRunner(object):
             pygame.mixer.music.load('background.mid')
             pygame.mixer.music.play(-1, 0.0)
 
-        pygame.event.set_allowed(typy.events.WORD_COMPLETED)
-        scrollwords = [AnimatingWord(self.surface, w) for w in typy.words.words()]
+        story_title = None
+        scrollwords = []
+        surface = self.surface
+        with open(self.story, 'r') as fd:
+            lines = fd.readlines()
+            story_title = lines[0]
+            for line in lines[1:]:
+                if line.startswith('----'):
+                    continue
+                scrollwords.extend(
+                        (AnimatingWord(surface, w) for w in line.split(' ') if w))
+
+
         last_word_index = 0
         while run:
             for event in pygame.event.get():
@@ -178,8 +195,29 @@ class GameRunner(object):
         if self.background_music:
             pygame.mixer.music.stop()
 
-if __name__ == "__main__" :
+def main():
+    options = optparse.OptionParser()
+    options.add_option('-s', '--story', dest='story',
+            help='Select a story from the `stories` folder')
+    opts, args = options.parse_args()
+
+    if not os.path.exists(STORIES_DIR):
+        print '>>> The `stories` folder is missing'
+        return -1
+
+    if not opts.story:
+        print '>>> You need a story!'
+        return -1
+
+    if not os.path.exists(opts.story):
+        print '>>> Looks like the story "%s" doesn\'t exist!' % opts.story
+        return -1
+
     pygame.init()
-    game = GameRunner(640, 480)
+    game = GameRunner(640, 480, opts.story)
     game.runloop()
     pygame.quit()
+    return 0
+
+if __name__ == "__main__" :
+    sys.exit(main())
