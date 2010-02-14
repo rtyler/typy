@@ -55,9 +55,7 @@ class LetterSpool(object):
                 (offset_x, offset_y,))
 
 class AnimatingObject(object):
-    def update(self):
-        ''' Return True if the object is offscreen '''
-        pass
+    pass
 
 class AnimatingWord(AnimatingObject):
     def __init__(self, parent, word, **kwargs):
@@ -72,9 +70,14 @@ class AnimatingWord(AnimatingObject):
         self.width, self.height = self.font.size(word)
         self.offset_x = self.parent_width
         self.offset_y = (self.parent_height / 2) - (self.height / 2)
-        self.surface = self.font.render(word, 0, self.color)
+        self.surface = self.render_word()
 
-    def is_offscreen(self):
+    def render_word(self):
+        return self.font.render(self.word, 0, self.color)
+
+    def offscreen(self):
+        if self.offset_x + self.width <= 0:
+            return True
         return False
 
     def next_ready(self):
@@ -89,6 +92,9 @@ class AnimatingWord(AnimatingObject):
         self.parent.fill( (0, 0, 0),
                 rect=pygame.Rect(self.offset_x, self.offset_y,
                     self.width, self.height))
+        if self.offset_x <= 0:
+            self.color = (255, 0, 0)
+            self.surface = self.render_word()
         self.parent.blit(self.surface, (self.offset_x, self.offset_y))
         self.offset_x = self.offset_x - self.step
         return False
@@ -163,6 +169,10 @@ class GameRunner(object):
             if last_word_index <= (len(scrollwords) - 1):
                 if scrollwords[last_word_index].next_ready():
                     last_word_index += 1
+
+            if scrollwords and scrollwords[0].offscreen():
+                scrollwords = scrollwords[1:]
+                last_word_index -= 1
 
             pygame.display.update()
         if self.background_music:
